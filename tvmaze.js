@@ -10796,33 +10796,33 @@ function searchShowsByTerm(term) {
             switch (_a.label) {
                 case 0:
                     params = new URLSearchParams({ q: term });
-                    return [4 /*yield*/, fetch("".concat(BASE_URL, "/shows?").concat(params))];
+                    return [4 /*yield*/, fetch("".concat(BASE_URL, "/search/shows?").concat(params))];
                 case 1:
                     response = _a.sent();
                     return [4 /*yield*/, response.json()];
                 case 2:
                     data = _a.sent();
                     shows = data.map(function (show) {
+                        var _a;
                         var showI = {
-                            id: show.id,
-                            name: show.name,
-                            summary: show.summary,
-                            image: show.image.original || MISSING_IMAGE_URL
+                            id: show.show.id,
+                            name: show.show.name,
+                            summary: show.show.summary,
+                            image: ((_a = show.show.image) === null || _a === void 0 ? void 0 : _a.original) || MISSING_IMAGE_URL
                         };
                         return showI;
                     });
-                    console.log(shows);
                     return [2 /*return*/, shows];
             }
         });
     });
 }
-/** Given list of shows, create markup for each and to DOM */
+/** Given list of shows, create markup for each and add to DOM */
 function populateShows(shows) {
     $showsList.empty();
     for (var _i = 0, shows_1 = shows; _i < shows_1.length; _i++) {
         var show = shows_1[_i];
-        var $show = $("<div data-show-id=\"".concat(show.id, "\" class=\"Show col-md-12 col-lg-6 mb-4\">\n         <div class=\"media\">\n           <img\n              src=\"http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg\"\n              alt=\"Bletchly Circle San Francisco\"\n              class=\"w-25 me-3\">\n           <div class=\"media-body\">\n             <h5 class=\"text-primary\">").concat(show.name, "</h5>\n             <div><small>").concat(show.summary, "</small></div>\n             <button class=\"btn btn-outline-light btn-sm Show-getEpisodes\">\n               Episodes\n             </button>\n           </div>\n         </div>\n       </div>\n      "));
+        var $show = $("<div data-show-id=\"".concat(show.id, "\" class=\"Show col-md-12 col-lg-6 mb-4\">\n         <div class=\"media\">\n           <img\n              src=\"").concat(show.image, "\"\n              alt=\"").concat(show.name, "\"\n              class=\"w-25 me-3\">\n           <div class=\"media-body\">\n             <h5 class=\"text-primary\">").concat(show.name, "</h5>\n             <div><small>").concat(show.summary, "</small></div>\n             <button class=\"btn btn-outline-light btn-sm Show-getEpisodes\">\n               Episodes\n             </button>\n           </div>\n         </div>\n       </div>\n      "));
         $showsList.append($show);
     }
 }
@@ -10835,7 +10835,7 @@ function searchForShowAndDisplay() {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    term = $("#searchForm-term").val();
+                    term = String($("#searchForm-term").val());
                     return [4 /*yield*/, searchShowsByTerm(term)];
                 case 1:
                     shows = _a.sent();
@@ -10863,9 +10863,69 @@ $searchForm.on("submit", function (evt) {
 /** Given a show ID, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
  */
-// async function getEpisodesOfShow(id) { }
-/** Write a clear docstring for this function... */
-// function populateEpisodes(episodes) { }
+function getEpisodesOfShow(id) {
+    return __awaiter(this, void 0, void 0, function () {
+        var response, data, episodes;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fetch("".concat(BASE_URL, "/shows/").concat(id, "/episodes"))];
+                case 1:
+                    response = _a.sent();
+                    return [4 /*yield*/, response.json()];
+                case 2:
+                    data = _a.sent();
+                    episodes = data.map(function (episode) { return ({
+                        id: episode.id,
+                        name: episode.name,
+                        season: episode.season,
+                        number: episode.number
+                    }); });
+                    return [2 /*return*/, episodes];
+            }
+        });
+    });
+}
+/** Given list of episodes, create markup for each and add to DOM */
+function populateEpisodes(episodes) {
+    var $episodesList = $('#episodesList');
+    $episodesList.empty();
+    var episodesAsLi = episodes.map(function (episode) { return "<li>".concat(episode.name, " (season ").concat(episode.season, ", number ").concat(episode.number, ")</li>"); });
+    episodesAsLi.forEach(function (li) { $episodesList.append(li); });
+    $episodesArea.show();
+}
+/** Handle showEpisodes button click: get episodes
+ *    info from API, add to episodes, and show episodes area.
+ */
+function showEpisodes(evt) {
+    return __awaiter(this, void 0, void 0, function () {
+        var id, episodes;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    id = Number($(evt.target).closest('[data-show-id]').data("showId"));
+                    return [4 /*yield*/, getEpisodesOfShow(id)];
+                case 1:
+                    episodes = _a.sent();
+                    populateEpisodes(episodes);
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
+$showsList.on("click", ".Show-getEpisodes", function (evt) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    evt.preventDefault();
+                    return [4 /*yield*/, showEpisodes(evt)];
+                case 1:
+                    _a.sent();
+                    return [2 /*return*/];
+            }
+        });
+    });
+});
 
 
 /***/ })

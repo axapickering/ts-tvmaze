@@ -1,4 +1,4 @@
-import jQuery from 'jquery';
+import jQuery, { get } from 'jquery';
 
 const $ = jQuery;
 
@@ -12,9 +12,8 @@ interface showInterface {
   id: number;
   name: string;
   summary: string;
-  image: string;
+  image?: string;
 }
-
 
 /** Given a search term, search for tv shows that match that query.
  *
@@ -25,31 +24,28 @@ interface showInterface {
 
 async function searchShowsByTerm(term:string) :Promise <showInterface[]> {
   // ADD: Remove placeholder & make request to TVMaze search shows API.
-  const params = new URLSearchParams({ q: term });
-  const response = await fetch(`${BASE_URL}/shows?${params}`);
+  const params: URLSearchParams = new URLSearchParams({ q: term });
+  const response : Response = await fetch(`${BASE_URL}/search/shows?${params}`);
 
-  let data:[] = await response.json();
+  let data: {show: {id: number, name: string, summary: string, image: {original: string}}}[] = await response.json();
 
-  const shows:showInterface[] = data.map(show => {
+  const shows:showInterface[] = data.map( show => {
     let showI: showInterface = {
-      id: show.id,
-      name: show.name,
-      summary: show.summary,
-      image: show.image.original || MISSING_IMAGE_URL
+      id: show.show.id,
+      name: show.show.name,
+      summary: show.show.summary,
+      image: show.show.image?.original || MISSING_IMAGE_URL
     };
     return showI;
   }
   );
 
-  console.log(shows);
-
   return shows;
 }
 
 
-/** Given list of shows, create markup for each and to DOM */
-
-function populateShows(shows) {
+/** Given list of shows, create markup for each and add to DOM */
+function populateShows(shows:showInterface[]) {
   $showsList.empty();
 
   for (let show of shows) {
@@ -57,8 +53,8 @@ function populateShows(shows) {
       `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img
-              src="http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg"
-              alt="Bletchly Circle San Francisco"
+              src="${show.image}"
+              alt="${show.name}"
               class="w-25 me-3">
            <div class="media-body">
              <h5 class="text-primary">${show.name}</h5>
@@ -79,9 +75,9 @@ function populateShows(shows) {
 /** Handle search form submission: get shows from API and display.
  *    Hide episodes area (that only gets shown if they ask for episodes)
  */
-
 async function searchForShowAndDisplay() {
-  const term = $("#searchForm-term").val();
+
+  const term :string = String($("#searchForm-term").val());
   const shows = await searchShowsByTerm(term);
 
   $episodesArea.hide();
@@ -94,12 +90,51 @@ $searchForm.on("submit", async function (evt) {
 });
 
 
+interface episodeInterface {
+  id: number;
+  name: string;
+  season: string;
+  number: string;
+}
 /** Given a show ID, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(id: number) :Promise <episodeInterface[]>  {
+  const response : Response = await fetch(`${BASE_URL}/shows/${id}/episodes`);
+  const data :episodeInterface[]= await response.json();
+  const episodes :episodeInterface[] = data.map(episode =>(
+    {
+    id: episode.id,
+    name: episode.name,
+    season: episode.season,
+    number: episode.number
+  }))
 
-/** Write a clear docstring for this function... */
+  return episodes;
+}
 
-// function populateEpisodes(episodes) { }
+/** Given list of episodes, create markup for each and add to DOM */
+function populateEpisodes(episodes:episodeInterface[]) {
+  const $episodesList :JQuery<HTMLElement> = $('#episodesList')
+  $episodesList.empty();
+  const episodesAsLi :string[]= episodes.map(episode => `<li>${episode.name} (season ${episode.season}, number ${episode.number})</li>`)
+  episodesAsLi.forEach(li => {$episodesList.append(li)});
+
+ $episodesArea.show();
+}
+
+
+/** Handle showEpisodes button click: get episodes
+ *    info from API, add to episodes, and show episodes area.
+ */
+async function showEpisodes (evt: JQuery.ClickEvent<HTMLElement>) {
+  const id :number = Number($(evt.target).closest('[data-show-id]').data("showId"));
+  const episodes :episodeInterface[] = await getEpisodesOfShow(id)
+  populateEpisodes(episodes);
+}
+
+$showsList.on("click", ".Show-getEpisodes", async function (evt: JQuery.ClickEvent<HTMLElement>) {
+  evt.preventDefault();
+  await showEpisodes(evt);
+});
